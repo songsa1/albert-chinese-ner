@@ -96,10 +96,10 @@ flags.DEFINE_float(
     "Proportion of training to perform linear learning rate warmup for. "
     "E.g., 0.1 = 10% of training.")
 
-flags.DEFINE_integer("save_checkpoints_steps", 1000,
+flags.DEFINE_integer("save_checkpoints_steps", 500,
                      "How often to save the model checkpoint.")
 
-flags.DEFINE_integer("iterations_per_loop", 1000,
+flags.DEFINE_integer("iterations_per_loop", 500,
                      "How many steps to make in each estimator call.")
 
 flags.DEFINE_bool("use_tpu", False, "Whether to use TPU or GPU/CPU.")
@@ -196,7 +196,7 @@ class DataProcessor(object):
   @classmethod
   def _read_data(cls, input_file):
     """Reads a BIO data."""
-    with open(input_file) as f:
+    with open(input_file, 'r', encoding='utf-8') as f:
       lines = []
       words = []
       labels = []
@@ -341,8 +341,12 @@ def file_based_convert_examples_to_features(
   label_map = {}
   for (i, label) in enumerate(label_list,1):
     label_map[label] = i
-  with open('albert_base_ner_checkpoints/label2id.pkl','wb') as w:
-    pickle.dump(label_map,w)
+
+  with open(r'D:/code/albert-chinese-ner/output/albert_ner_1/label2id.pkl', 'wb') as w:
+    pickle.dump(label_map, w)
+
+  # with open('albert_base_ner_checkpoints/label2id.pkl','wb') as w:
+  #   pickle.dump(label_map,w)
 
   writer = tf.python_io.TFRecordWriter(output_file)
 
@@ -672,6 +676,7 @@ def main(_):
   # Cloud TPU: Invalid TPU configuration, ensure ClusterResolver is passed to tpu.
   print("###tpu_cluster_resolver:",tpu_cluster_resolver)
   run_config = tf.contrib.tpu.RunConfig(
+      keep_checkpoint_max=10000,
       cluster=tpu_cluster_resolver,
       master=FLAGS.master,
       model_dir=FLAGS.output_dir,
@@ -842,4 +847,9 @@ if __name__ == "__main__":
   flags.mark_flag_as_required("vocab_file")
   flags.mark_flag_as_required("bert_config_file")
   flags.mark_flag_as_required("output_dir")
+  flags.mark_flag_as_required("init_checkpoint")
+  flags.mark_flag_as_required("learning_rate")
   tf.app.run()
+
+
+#  python albert_ner.py --task_name ner --do_train true --do_eval true --data_dir data --vocab_file=D:/code/albert-chinese-ner/albert_config/vocab.txt --bert_config_file=D:/code/albert-chinese-ner/albert_config/albert_config_tiny.json --max_seq_length 128 --train_batch_size 4 --learning_rate 2e-5 --num_train_epochs 3 --output_dir D:/code/albert-chinese-ner/output/albert_ner_1 init_checkpoint=D:/code/albert_tiny_489k/albert_model.ckp
