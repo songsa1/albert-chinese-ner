@@ -95,10 +95,10 @@ flags.DEFINE_float(
     "Proportion of training to perform linear learning rate warmup for. "
     "E.g., 0.1 = 10% of training.")
 
-flags.DEFINE_integer("save_checkpoints_steps", 500,
+flags.DEFINE_integer("save_checkpoints_steps", 100,
                      "How often to save the model checkpoint.")
 
-flags.DEFINE_integer("iterations_per_loop", 500,
+flags.DEFINE_integer("iterations_per_loop", 100,
                      "How many steps to make in each estimator call.")
 
 flags.DEFINE_bool("use_tpu", False, "Whether to use TPU or GPU/CPU.")
@@ -199,7 +199,9 @@ class DataProcessor(object):
             lines = []
             words = []
             labels = []
+            index = 0
             for line in f:
+                index += 1
                 contends = line.strip()
                 word = line.strip().split(' ')[0]
                 label = line.strip().split(' ')[-1]
@@ -207,13 +209,18 @@ class DataProcessor(object):
                     words.append('')
                     continue
                 # if len(contends) == 0 and words[-1] == '。':
+
                 if len(contends) == 0:
+                    # import pdb
+                    # pdb.set_trace()
+                    # print(contends)
                     l = ' '.join([label for label in labels if len(label) > 0])
                     w = ' '.join([word for word in words if len(word) > 0])
                     lines.append([l, w])
                     words = []
                     labels = []
                     continue
+
                 words.append(word)
                 labels.append(label)
             return lines
@@ -236,21 +243,19 @@ class NerProcessor(DataProcessor):
 
     def get_labels(self):
         # return ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "[CLS]","[SEP]"]
+
         # return ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "X", "[CLS]", "[SEP]"]
 
-        return ["O",
-                "B-dis", "I-dis",
-                "B-sym", "I-sym",
-                "B-pro", "I-pro",
-                "B-equ", "I-equ",
-                "B-dru", "I-dru",
-                "B-ite", "I-ite",
-                "B-bod", "I-bod",
-                "B-dep", "I-dep",
-                "B-mic", "I-mic", "X", "[CLS]", "[SEP]"]
+        return ['B-ill', 'I-ill', 'B-che', 'I-che', 'B-fac', 'I-fac', 'B-ins', 'I-ins', 'B-pty', 'I-pty',
+                'B-gep', 'I-gep', 'B-med', 'I-med', 'B-eva', 'I-eva', 'B-spe', 'I-spe', 'B-dru', 'I-dru',
+                'B-res', 'I-res', 'B-cro', 'I-cro', 'B-cur', 'I-cur', 'B-bod', 'I-bod', 'B-deg', 'I-deg',
+                'B-eti', 'I-eti', 'B-sym', 'I-sym', 'B-eff', 'I-eff', 'B-reo', 'I-reo', 'O', 'X', "[CLS]", "[SEP]"]
+
 
     def _create_example(self, lines, set_type):
         examples = []
+        print(len(lines))
+        print('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
         for (i, line) in enumerate(lines):
             guid = "%s-%s" % (set_type, i)
             text = tokenization.convert_to_unicode(line[1])
@@ -262,7 +267,7 @@ class NerProcessor(DataProcessor):
 def write_tokens(tokens, mode):
     if mode == "test":
         path = os.path.join(FLAGS.output_dir, "token_" + mode + ".txt")
-        wf = open(path, 'a', encoding='utf-8')
+        wf = open(path, 'a')
         for token in tokens:
             if token != "**NULL**":
                 wf.write(token + '\n')
@@ -284,10 +289,10 @@ def convert_single_example(ex_index, example, label_map, max_seq_length, tokeniz
         for m in range(len(token)):
             if m == 0:
                 labels.append(label_1)
-            # else:
-            #     labels.append("X")
-        # print(tokens, labels)
-        # tokens = tokenizer.tokenize(example.text)
+                # else:
+                #     labels.append("X")
+                # print(tokens, labels)
+                # tokens = tokenizer.tokenize(example.text)
     if len(tokens) >= max_seq_length - 1:
         tokens = tokens[0:(max_seq_length - 2)]
         labels = labels[0:(max_seq_length - 2)]
@@ -352,7 +357,7 @@ def file_based_convert_examples_to_features(
     label_map = {}
     for (i, label) in enumerate(label_list, 1):
         label_map[label] = i
-    with open('albert_base_ner_checkpoints_3/label2id.pkl', 'wb') as w:
+    with open('output/albert_base_ner_checkpoints_1/label2id.pkl', 'wb') as w:
         pickle.dump(label_map, w)
 
     writer = tf.python_io.TFRecordWriter(output_file)
@@ -458,7 +463,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
         output_layer = tf.reshape(output_layer, [-1, hidden_size])
         logits = tf.matmul(output_layer, output_weight, transpose_b=True)
         logits = tf.nn.bias_add(logits, output_bias)
-        logits = tf.reshape(logits, [-1, FLAGS.max_seq_length, 23])
+        logits = tf.reshape(logits, [-1, FLAGS.max_seq_length, 43])  ####################################################
 
         log_probs = tf.nn.log_softmax(logits, axis=-1)
         one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
@@ -543,10 +548,10 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
             def metric_fn(per_example_loss, label_ids, logits):
                 # def metric_fn(label_ids, logits):
                 predictions = tf.argmax(logits, axis=-1, output_type=tf.int32)
-                precision = tf_metrics.precision(label_ids, predictions, 23, [2, 3, 4, 5, 6, 7], average="macro")
-                recall = tf_metrics.recall(label_ids, predictions, 23, [2, 3, 4, 5, 6, 7], average="macro")
-                f = tf_metrics.f1(label_ids, predictions, 23, [2, 3, 4, 5, 6, 7], average="macro")
-                # ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "X", "[CLS]", "[SEP]"]
+                precision = tf_metrics.precision(label_ids, predictions, 43, [2, 3, 4, 5, 6, 7], average="macro")
+                recall = tf_metrics.recall(label_ids, predictions, 43, [2, 3, 4, 5, 6, 7], average="macro")
+                f = tf_metrics.f1(label_ids, predictions, 43, [2, 3, 4, 5, 6, 7], average="macro")
+                #
                 return {
                     "eval_precision": precision,
                     "eval_recall": recall,
@@ -807,20 +812,20 @@ def main(_):
                 for key in sorted(result.keys()):
                     tf.logging.info("  %s = %s", key, str(result[key]))
                     writer.write("%s = %s\n" % (key, str(result[key])))
-        #######################################################################################################################
+                    #######################################################################################################################
 
-        # result = estimator.evaluate(input_fn=eval_input_fn, steps=eval_steps)
-        #
-        # output_eval_file = os.path.join(FLAGS.output_dir, "eval_results.txt")
-        # with tf.gfile.GFile(output_eval_file, "w") as writer:
-        #  tf.logging.info("***** Eval results *****")
-        #  for key in sorted(result.keys()):
-        #    tf.logging.info("  %s = %s", key, str(result[key]))
-        #    writer.write("%s = %s\n" % (key, str(result[key])))
+                    # result = estimator.evaluate(input_fn=eval_input_fn, steps=eval_steps)
+                    #
+                    # output_eval_file = os.path.join(FLAGS.output_dir, "eval_results.txt")
+                    # with tf.gfile.GFile(output_eval_file, "w") as writer:
+                    #  tf.logging.info("***** Eval results *****")
+                    #  for key in sorted(result.keys()):
+                    #    tf.logging.info("  %s = %s", key, str(result[key]))
+                    #    writer.write("%s = %s\n" % (key, str(result[key])))
 
     if FLAGS.do_predict:
         token_path = os.path.join(FLAGS.output_dir, "token_test.txt")
-        with open('albert_base_ner_checkpoints_3/label2id.pkl', 'rb') as rf:
+        with open('output/albert_base_ner_checkpoints_1/label2id.pkl', 'rb') as rf:
             label2id = pickle.load(rf)
             id2label = {value: key for key, value in label2id.items()}
         if os.path.exists(token_path):
@@ -848,7 +853,7 @@ def main(_):
 
         result = estimator.predict(input_fn=predict_input_fn)
         output_predict_file = os.path.join(FLAGS.output_dir, "label_test.txt")
-        with open(output_predict_file, 'w', encoding='utf-8') as writer:
+        with open(output_predict_file, 'w') as writer:
             for prediction in result:
                 output_line = "\n".join(id2label[id] for id in prediction if id != 0) + "\n"
                 writer.write(output_line)
@@ -862,5 +867,4 @@ if __name__ == "__main__":
     flags.mark_flag_as_required("output_dir")
     tf.app.run()
 
-
-    # python albert_ner.py --task_name ner --do_train true --do_eval true --data_dir data --vocab_file ./albert_config/vocab.txt --bert_config_file ./albert_base_zh/albert_config_base.json --max_seq_length 128 --train_batch_size=4 --learning_rate 2e-5 --num_train_epochs=1 --output_dir albert_base_ner_checkpoints_1
+# python albert_ner.py --task_name ner --do_train true --do_eval true --data_dir data --vocab_file ./albert_config/vocab.txt --bert_config_file ./albert_base_zh/albert_config_base.json --max_seq_length 128 --train_batch_size 64 --learning_rate 2e-5 --num_train_epochs 3 --output_dir=output/albert_base_ner_checkpoints_1
