@@ -249,7 +249,8 @@ class NerProcessor(DataProcessor):
         return ['B-ill', 'I-ill', 'B-che', 'I-che', 'B-fac', 'I-fac', 'B-ins', 'I-ins', 'B-pty', 'I-pty',
                 'B-gep', 'I-gep', 'B-med', 'I-med', 'B-eva', 'I-eva', 'B-spe', 'I-spe', 'B-dru', 'I-dru',
                 'B-res', 'I-res', 'B-cro', 'I-cro', 'B-cur', 'I-cur', 'B-bod', 'I-bod', 'B-deg', 'I-deg',
-                'B-eti', 'I-eti', 'B-sym', 'I-sym', 'B-eff', 'I-eff', 'B-reo', 'I-reo', 'O', 'X', "[CLS]", "[SEP]"]
+                'B-eti', 'I-eti', 'B-sym', 'I-sym', 'B-eff', 'I-eff', 'B-reo', 'I-reo', 'B-adv', 'I-adv',
+                'O', 'X', "[CLS]", "[SEP]"]
 
 
     def _create_example(self, lines, set_type):
@@ -463,7 +464,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
         output_layer = tf.reshape(output_layer, [-1, hidden_size])
         logits = tf.matmul(output_layer, output_weight, transpose_b=True)
         logits = tf.nn.bias_add(logits, output_bias)
-        logits = tf.reshape(logits, [-1, FLAGS.max_seq_length, 43])  ####################################################
+        logits = tf.reshape(logits, [-1, FLAGS.max_seq_length, 45])  ####################################################
 
         log_probs = tf.nn.log_softmax(logits, axis=-1)
         one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
@@ -548,9 +549,9 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
             def metric_fn(per_example_loss, label_ids, logits):
                 # def metric_fn(label_ids, logits):
                 predictions = tf.argmax(logits, axis=-1, output_type=tf.int32)
-                precision = tf_metrics.precision(label_ids, predictions, 43, [2, 3, 4, 5, 6, 7], average="macro")
-                recall = tf_metrics.recall(label_ids, predictions, 43, [2, 3, 4, 5, 6, 7], average="macro")
-                f = tf_metrics.f1(label_ids, predictions, 43, [2, 3, 4, 5, 6, 7], average="macro")
+                precision = tf_metrics.precision(label_ids, predictions, 45, [2, 3, 4, 5, 6, 7], average="macro")
+                recall = tf_metrics.recall(label_ids, predictions, 45, [2, 3, 4, 5, 6, 7], average="macro")
+                f = tf_metrics.f1(label_ids, predictions, 45, [2, 3, 4, 5, 6, 7], average="macro")
                 #
                 return {
                     "eval_precision": precision,
