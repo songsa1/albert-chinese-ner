@@ -274,7 +274,7 @@ class NerProcessor(DataProcessor):
 def write_tokens(tokens, mode):
     if mode == "test":
         path = os.path.join(FLAGS.output_dir, "token_" + mode + ".txt")
-        wf = open(path, 'a')
+        wf = open(path, 'a', encoding='utf-8')
         for token in tokens:
             if token != "**NULL**":
                 wf.write(token + '\n')
@@ -364,7 +364,7 @@ def file_based_convert_examples_to_features(
     label_map = {}
     for (i, label) in enumerate(label_list, 1):
         label_map[label] = i
-    with open('output/albert_base_ner_checkpoints_1/label2id.pkl', 'wb') as w:
+    with open('albert_base_ner_checkpoints_5/label2id.pkl', 'wb') as w:
         pickle.dump(label_map, w)
 
     writer = tf.python_io.TFRecordWriter(output_file)
@@ -861,7 +861,7 @@ def main(_):
 
         result = estimator.predict(input_fn=predict_input_fn)
         output_predict_file = os.path.join(FLAGS.output_dir, "label_test.txt")
-        with open(output_predict_file, 'w') as writer:
+        with open(output_predict_file, 'w', encoding='utf-8') as writer:
             for prediction in result:
                 output_line = "\n".join(id2label[id] for id in prediction if id != 0) + "\n"
                 writer.write(output_line)
@@ -875,4 +875,5 @@ if __name__ == "__main__":
     flags.mark_flag_as_required("output_dir")
     tf.app.run()
 
-# python albert_ner.py --task_name ner --do_train true --do_eval true --data_dir data --vocab_file ./albert_config/vocab.txt --bert_config_file ./albert_base_zh/albert_config_base.json --max_seq_length 128 --train_batch_size 64 --learning_rate 2e-5 --num_train_epochs 3 --output_dir=output/albert_base_ner_checkpoints_1
+
+    # python albert_ner.py --task_name ner --do_train true --do_eval true --data_dir data --vocab_file ./albert_config/vocab.txt --bert_config_file ./albert_base_zh/albert_config_base.json --max_seq_length 128 --train_batch_size=4 --learning_rate 2e-5 --num_train_epochs=1 --output_dir albert_base_ner_checkpoints_1
