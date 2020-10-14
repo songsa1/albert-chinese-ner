@@ -95,10 +95,10 @@ flags.DEFINE_float(
     "Proportion of training to perform linear learning rate warmup for. "
     "E.g., 0.1 = 10% of training.")
 
-flags.DEFINE_integer("save_checkpoints_steps", 100,
+flags.DEFINE_integer("save_checkpoints_steps", 500,
                      "How often to save the model checkpoint.")
 
-flags.DEFINE_integer("iterations_per_loop", 100,
+flags.DEFINE_integer("iterations_per_loop", 500,
                      "How many steps to make in each estimator call.")
 
 flags.DEFINE_bool("use_tpu", False, "Whether to use TPU or GPU/CPU.")
@@ -246,11 +246,17 @@ class NerProcessor(DataProcessor):
 
         # return ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "X", "[CLS]", "[SEP]"]
 
-        return ['B-ill', 'I-ill', 'B-che', 'I-che', 'B-fac', 'I-fac', 'B-ins', 'I-ins', 'B-pty', 'I-pty',
-                'B-gep', 'I-gep', 'B-med', 'I-med', 'B-eva', 'I-eva', 'B-spe', 'I-spe', 'B-dru', 'I-dru',
-                'B-res', 'I-res', 'B-cro', 'I-cro', 'B-cur', 'I-cur', 'B-bod', 'I-bod', 'B-deg', 'I-deg',
-                'B-eti', 'I-eti', 'B-sym', 'I-sym', 'B-eff', 'I-eff', 'B-reo', 'I-reo', 'B-adv', 'I-adv',
-                'O', 'X', "[CLS]", "[SEP]"]
+        # return ['B-ill', 'I-ill', 'B-che', 'I-che', 'B-fac', 'I-fac', 'B-ins', 'I-ins', 'B-pty', 'I-pty',
+        #         'B-gep', 'I-gep', 'B-med', 'I-med', 'B-eva', 'I-eva', 'B-spe', 'I-spe', 'B-dru', 'I-dru',
+        #         'B-res', 'I-res', 'B-cro', 'I-cro', 'B-cur', 'I-cur', 'B-bod', 'I-bod', 'B-deg', 'I-deg',
+        #         'B-eti', 'I-eti', 'B-sym', 'I-sym', 'B-eff', 'I-eff', 'B-reo', 'I-reo', 'B-adv', 'I-adv',
+        #         'O', 'X', "[CLS]", "[SEP]"]
+
+        return ['B-Level', 'I-Level', 'B-Operation', 'I-Operation', 'B-Reason', 'I-Reason', 'B-Frequency', 'I-Frequency',
+                'B-SideEff', 'I-SideEff', 'B-Amount', 'I-Amount', 'B-Symptom', 'I-Symptom', 'B-Duration', 'I-Duration',
+                'B-Anatomy', 'I-Anatomy', 'B-Test_Value', 'I-Test_Value', 'B-Disease', 'I-Disease', 'B-Test', 'I-Test',
+                'B-Method', 'I-Method', 'B-Drug', 'I-Drug', 'B-Treatment', 'I-Treatment', 'O', 'X', "[CLS]", "[SEP]"]
+
 
 
     def _create_example(self, lines, set_type):
@@ -464,7 +470,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
         output_layer = tf.reshape(output_layer, [-1, hidden_size])
         logits = tf.matmul(output_layer, output_weight, transpose_b=True)
         logits = tf.nn.bias_add(logits, output_bias)
-        logits = tf.reshape(logits, [-1, FLAGS.max_seq_length, 45])  ####################################################
+        logits = tf.reshape(logits, [-1, FLAGS.max_seq_length, 35])  ####################################################
 
         log_probs = tf.nn.log_softmax(logits, axis=-1)
         one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
@@ -549,9 +555,9 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
             def metric_fn(per_example_loss, label_ids, logits):
                 # def metric_fn(label_ids, logits):
                 predictions = tf.argmax(logits, axis=-1, output_type=tf.int32)
-                precision = tf_metrics.precision(label_ids, predictions, 45, [2, 3, 4, 5, 6, 7], average="macro")
-                recall = tf_metrics.recall(label_ids, predictions, 45, [2, 3, 4, 5, 6, 7], average="macro")
-                f = tf_metrics.f1(label_ids, predictions, 45, [2, 3, 4, 5, 6, 7], average="macro")
+                precision = tf_metrics.precision(label_ids, predictions, 35, [2, 3, 4, 5, 6, 7], average="macro")
+                recall = tf_metrics.recall(label_ids, predictions, 35, [2, 3, 4, 5, 6, 7], average="macro")
+                f = tf_metrics.f1(label_ids, predictions, 35, [2, 3, 4, 5, 6, 7], average="macro")
                 #
                 return {
                     "eval_precision": precision,
@@ -682,6 +688,7 @@ def main(_):
 
     label_list = processor.get_labels()
 
+    # 文本处理类 解释：https://zhuanlan.zhihu.com/p/91640100
     tokenizer = tokenization.FullTokenizer(
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
 
@@ -694,7 +701,7 @@ def main(_):
     # Cloud TPU: Invalid TPU configuration, ensure ClusterResolver is passed to tpu.
     print("###tpu_cluster_resolver:", tpu_cluster_resolver)
     run_config = tf.contrib.tpu.RunConfig(
-        keep_checkpoint_max=1000,
+        keep_checkpoint_max=1000,  #模型最大保存数量
         cluster=tpu_cluster_resolver,
         master=FLAGS.master,
         model_dir=FLAGS.output_dir,
